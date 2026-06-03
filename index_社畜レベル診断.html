@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>社畜レベル診断</title>
+  <style>
+    /* ===== CSS変数・リセット ===== */
+    :root {
+      --bg:        #0f172a;
+      --card:      #1e293b;
+      --card2:     #263348;
+      --accent:    #38bdf8;
+      --accent2:   #0ea5e9;
+      --danger:    #ef4444;
+      --warn:      #f97316;
+      --yellow:    #eab308;
+      --green:     #22c55e;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --radius:    18px;
+      --shadow:    0 8px 32px rgba(0,0,0,0.5);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+      min-height: 100dvh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ===== 背景グリッドエフェクト ===== */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(56,189,248,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56,189,248,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ===== グロー装飾 ===== */
+    .glow-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .glow-orb.top    { width: 300px; height: 300px; background: rgba(56,189,248,0.08); top: -80px; left: 50%; transform: translateX(-50%); }
+    .glow-orb.bottom { width: 200px; height: 200px; background: rgba(239,68,68,0.07);  bottom: -50px; right: -50px; }
+
+    /* ===== メインラッパー ===== */
+    #app {
+      position: relative;
+      z-index: 1;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+
+    /* ===== 画面切り替えアニメーション ===== */
+    .screen { display: none; animation: fadeUp 0.4s ease both; }
+    .screen.active { display: block; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===== タイトル画面 ===== */
+    .title-header {
+      text-align: center;
+      padding: 40px 0 32px;
+    }
+    .title-badge {
+      display: inline-block;
+      background: rgba(56,189,248,0.12);
+      border: 1px solid rgba(56,189,248,0.3);
+      color: var(--accent);
+      font-size: 11px;
+      letter-spacing: 2px;
+      padding: 4px 14px;
+      border-radius: 99px;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+    }
+    .title-main {
+      font-size: clamp(26px, 7vw, 34px);
+      font-weight: 900;
+      letter-spacing: -1px;
+      line-height: 1.2;
+      background: linear-gradient(135deg, #e2e8f0 0%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .title-sub {
+      margin-top: 10px;
+      font-size: 14px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+    }
+    .skull-icon {
+      font-size: 56px;
+      display: block;
+      margin: 24px auto 0;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { transform: scale(1);   opacity: 1;   }
+      50%      { transform: scale(1.1); opacity: 0.8; }
+    }
+
+    /* ===== カード共通 ===== */
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    /* ===== スタートボタン ===== */
+    .btn-primary {
+      width: 100%;
+      padding: 18px;
+      border-radius: var(--radius);
+      border: none;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      color: #0f172a;
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      box-shadow: 0 4px 24px rgba(56,189,248,0.35);
+      transition: transform 0.15s, box-shadow 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-primary:active { transform: scale(0.97); box-shadow: 0 2px 12px rgba(56,189,248,0.2); }
+
+    /* ===== クイズ画面 ===== */
+    .progress-bar-wrap {
+      background: var(--card2);
+      border-radius: 99px;
+      height: 6px;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 99px;
+      transition: width 0.4s cubic-bezier(.4,0,.2,1);
+    }
+    .progress-text {
+      text-align: right;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    /* 質問カード */
+    .question-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,0.07);
+      box-shadow: var(--shadow);
+      padding: 24px 20px;
+      margin-bottom: 20px;
+      min-height: 130px;
+    }
+    .q-num {
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 2px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .q-text {
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.5;
+      letter-spacing: -0.3px;
+    }
+
+    /* スライダー選択 */
+    .score-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .score-buttons {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+    }
+    .score-btn {
+      aspect-ratio: 1;
+      border-radius: 12px;
+      border: 2px solid rgba(255,255,255,0.08);
+      background: var(--card2);
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      -webkit-tap-highlight-color: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .score-btn:active { transform: scale(0.92); }
+    .score-btn.selected {
+      border-color: var(--accent);
+      background: rgba(56,189,248,0.18);
+      color: var(--accent);
+      box-shadow: 0 0 12px rgba(56,189,248,0.25);
+      transform: scale(1.05);
+    }
+
+    /* ナビボタン */
+    .nav-btns {
+      display: flex;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .btn-secondary {
+      flex: 1;
+      padding: 15px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: var(--card2);
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-secondary:active { transform: scale(0.96); }
+    .btn-next {
+      flex: 2;
+      padding: 15px;
+      border-radius: 14px;
+      border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #0f172a;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 4px 16px rgba(56,189,248,0.3);
+    }
+    .btn-next:active  { transform: scale(0.96); }
+    .btn-next:disabled {
+      opacity: 0.35;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    /* ===== 結果画面 ===== */
+    .result-header { text-align: center; padding: 20px 0 28px; }
+    .result-level-name {
+      font-size: 15px;
+      color: var(--accent);
+      letter-spacing: 2px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .result-title {
+      font-size: clamp(22px, 6vw, 30px);
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      line-height: 1.25;
+    }
+
+    /* 円形ゲージ */
+    .gauge-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 20px;
+    }
+    .gauge-svg-wrap { position: relative; width: 200px; height: 200px; }
+    .gauge-svg { transform: rotate(-90deg); }
+    .gauge-bg    { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 14; }
+    .gauge-track { fill: none; stroke-width: 14; stroke-linecap: round; transition: stroke-dashoffset 1.8s cubic-bezier(.4,0,.2,1); }
+    .gauge-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .gauge-pct {
+      font-size: 44px;
+      font-weight: 900;
+      letter-spacing: -2px;
+      line-height: 1;
+    }
+    .gauge-pct-unit { font-size: 16px; font-weight: 700; color: var(--muted); }
+    .gauge-score-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    /* AIコメント */
+    .ai-comment-card {
+      background: linear-gradient(135deg, rgba(56,189,248,0.08), rgba(14,165,233,0.04));
+      border: 1px solid rgba(56,189,248,0.2);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      margin-bottom: 16px;
+    }
+    .ai-label {
+      font-size: 10px;
+      color: var(--accent);
+      letter-spacing: 2px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .ai-text {
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.65;
+      color: #cbd5e1;
+    }
+
+    /* 診断コメント */
+    .result-comment {
+      font-size: 15px;
+      color: var(--muted);
+      line-height: 1.7;
+      text-align: center;
+      padding: 0 8px;
+      margin-bottom: 8px;
+    }
+
+    /* SNSシェア */
+    .btn-share {
+      width: 100%;
+      padding: 18px;
+      border-radius: var(--radius);
+      border: none;
+      background: #000;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      margin-bottom: 12px;
+    }
+    .btn-share:active { transform: scale(0.97); }
+    .x-icon { font-size: 18px; font-weight: 900; font-style: normal; }
+
+    .btn-retry {
+      width: 100%;
+      padding: 15px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,0.1);
+      background: transparent;
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-retry:active { transform: scale(0.97); background: var(--card2); }
+
+    /* 社畜度バー（内訳） */
+    .breakdown-card { margin-bottom: 16px; }
+    .breakdown-item { margin-bottom: 14px; }
+    .breakdown-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+    .breakdown-bar-wrap {
+      background: rgba(255,255,255,0.05);
+      border-radius: 99px;
+      height: 8px;
+      overflow: hidden;
+    }
+    .breakdown-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width 1.2s cubic-bezier(.4,0,.2,1);
+      width: 0;
+    }
+
+    /* フッター */
+    .footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 32px;
+      opacity: 0.5;
+    }
+
+    /* ===== ユーティリティ ===== */
+    .mt8  { margin-top: 8px; }
+    .mt16 { margin-top: 16px; }
+    .emoji-big { font-size: 48px; display: block; text-align: center; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+<!-- 背景装飾 -->
+<div class="glow-orb top"></div>
+<div class="glow-orb bottom"></div>
+
+<div id="app">
+
+  <!-- ===== タイトル画面 ===== -->
+  <div id="screen-title" class="screen active">
+    <div class="title-header">
+      <span class="title-badge">🔬 AI Diagnosis System</span>
+      <h1 class="title-main">社畜レベル<br>診断</h1>
+      <p class="title-sub">あなたの魂はまだ生きていますか？</p>
+      <span class="skull-icon">💀</span>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 診断について</div>
+      <p style="font-size:14px;color:var(--muted);line-height:1.7;">
+        10問の質問に答えるだけで、あなたの<strong style="color:var(--text)">社畜度</strong>を0〜100%でスコアリング。<br>
+        結果は正直すぎて笑えない…かもしれません。
+      </p>
+    </div>
+
+    <button class="btn-primary" onclick="startQuiz()">
+      🚀 診断スタート
+    </button>
+
+    <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:14px;">
+      全10問 · 回答目安 2分
+    </p>
+  </div>
+
+  <!-- ===== クイズ画面 ===== -->
+  <div id="screen-quiz" class="screen">
+    <!-- プログレスバー -->
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-bar"></div>
+    </div>
+    <div class="progress-text" id="progress-text"></div>
+
+    <!-- 質問カード -->
+    <div class="question-card">
+      <div class="q-num" id="q-num"></div>
+      <div class="q-text" id="q-text"></div>
+    </div>
+
+    <!-- スコアボタン -->
+    <div class="card" style="padding:18px;">
+      <div class="score-label">
+        <span>0 = 全くない</span>
+        <span>5 = 完全にそう</span>
+      </div>
+      <div class="score-buttons" id="score-buttons"></div>
+    </div>
+
+    <!-- ナビ -->
+    <div class="nav-btns">
+      <button class="btn-secondary" id="btn-prev" onclick="prevQuestion()">← 戻る</button>
+      <button class="btn-next" id="btn-next" onclick="nextQuestion()" disabled>次へ →</button>
+    </div>
+  </div>
+
+  <!-- ===== 結果画面 ===== -->
+  <div id="screen-result" class="screen">
+    <div class="result-header">
+      <div class="result-level-name" id="r-level-name"></div>
+      <div id="r-emoji" class="emoji-big"></div>
+      <div class="result-title" id="r-title"></div>
+    </div>
+
+    <!-- 円形ゲージ -->
+    <div class="card gauge-wrap">
+      <div class="gauge-svg-wrap">
+        <svg class="gauge-svg" viewBox="0 0 200 200" width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+          <circle class="gauge-bg"    cx="100" cy="100" r="86"/>
+          <circle class="gauge-track" cx="100" cy="100" r="86" id="gauge-track"/>
+        </svg>
+        <div class="gauge-center">
+          <span class="gauge-pct" id="gauge-pct-text">0</span>
+          <span class="gauge-pct-unit">%</span>
+          <span class="gauge-score-label" id="gauge-score-label"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 診断コメント -->
+    <div class="card" style="text-align:center;">
+      <p class="result-comment" id="r-comment"></p>
+    </div>
+
+    <!-- AIからの一言 -->
+    <div class="ai-comment-card">
+      <div class="ai-label">🤖 AI からの診断</div>
+      <div class="ai-text" id="ai-comment"></div>
+    </div>
+
+    <!-- 内訳バー -->
+    <div class="card breakdown-card" id="breakdown-card">
+      <div class="card-title">📊 内訳スコア</div>
+      <div id="breakdown-list"></div>
+    </div>
+
+    <!-- シェアボタン -->
+    <button class="btn-share" onclick="shareResult()">
+      <i class="x-icon">𝕏</i> 結果をXでシェア
+    </button>
+    <button class="btn-retry" onclick="retryQuiz()">🔄 もう一度診断する</button>
+
+    <div class="footer">社畜レベル診断 · 結果はあくまで参考です</div>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+/* ===========================
+   データ定義
+=========================== */
+
+// 質問リスト（各0〜5点）
+const QUESTIONS = [
+  { text: '月の残業時間は？',                   hint: '0=ほぼなし / 5=80時間超' },
+  { text: '上司から休日に連絡が来る？',           hint: '0=絶対ない / 5=毎週来る' },
+  { text: '有給を自由に使えない？',               hint: '0=自由に使える / 5=ほぼ無理' },
+  { text: '朝起きた瞬間に仕事のことを考える？',   hint: '0=全く考えない / 5=毎日必ず' },
+  { text: '仕事中に辞めたいと思う？',             hint: '0=全く思わない / 5=常に思う' },
+  { text: '月曜日が怖い？',                       hint: '0=全く怖くない / 5=日曜夜に絶望する' },
+  { text: '会社の飲み会が強制参加？',             hint: '0=完全任意 / 5=断れない空気' },
+  { text: '会社以外の収入源がない？',             hint: '0=副業あり / 5=完全依存' },
+  { text: '仕事のために趣味を諦めたことがある？', hint: '0=全くない / 5=趣味が消えた' },
+  { text: '「自分の代わりはいくらでもいる」と感じる？', hint: '0=全く思わない / 5=強く思う' },
+];
+
+// 判定レベル定義
+const LEVELS = [
+  { min: 0,  max: 10, emoji: '🟢', label: '人間',     name: 'LEVEL 0 ：解放市民',    comment: 'まだ人生を楽しめています。このまま逃げ切れ。',                      color: '#22c55e', trackColor: '#22c55e' },
+  { min: 11, max: 20, emoji: '🟡', label: '軽度社畜', name: 'LEVEL 1 ：軽度侵食',    comment: '少し会社に侵食されています。週末だけでも魂を取り戻しましょう。',      color: '#eab308', trackColor: '#eab308' },
+  { min: 21, max: 30, emoji: '🟠', label: '中度社畜', name: 'LEVEL 2 ：中毒症状',    comment: '会社が人生の中心になっています。黄色信号。今すぐ有給を申請しましょう。', color: '#f97316', trackColor: '#f97316' },
+  { min: 31, max: 40, emoji: '🔴', label: '重度社畜', name: 'LEVEL 3 ：魂預託中',    comment: '会社に魂を預けています。危険です。転職サイトを開く勇気はありますか？',  color: '#ef4444', trackColor: '#ef4444' },
+  { min: 41, max: 50, emoji: '💀', label: '社畜神',   name: 'LEVEL MAX ：社畜の神', comment: 'あなたはもう会社の備品です。退職届を書く準備を始めましょう。',           color: '#ef4444', trackColor: '#a855f7' },
+];
+
+// AIコメントプール（スコア帯別）
+const AI_COMMENTS = [
+  [ // 0〜10点
+    'あなたの会社、実は良い会社かもしれません。大切にしてください。',
+    'ワークライフバランスという言葉を体現しています。羨ましい。',
+    'この診断を受けた全員の中で、あなたが一番人間らしいです。',
+  ],
+  [ // 11〜20点
+    'その残業、あと10時間増えると会社が喜びます。注意してください。',
+    '週末の休息を削ると、来年の自分がツケを払います。',
+    'そのLINEの通知、月曜日からではなく土曜日から来ていませんか？',
+  ],
+  [ // 21〜30点
+    '有給が都市伝説になりつつあります。申請してみましょう。',
+    'あなたのベッドは会社の支店です。睡眠だけが自由時間です。',
+    'その"少しだけ"の残業が積み重なって人生を削っています。',
+  ],
+  [ // 31〜40点
+    '会社はあなたの人生に満足していますが、あなたは満足していますか？',
+    '転職サイトのアプリをこっそりDLするだけでも、魂が戻ります。',
+    'その疲労感、慢性になっていませんか？体だけは壊さないで。',
+  ],
+  [ // 41〜50点
+    'あなたの給料は全て、失った自由の賠償金には足りません。',
+    '会社はあなたが辞めても翌週には回ります。でも人生は取り戻せません。',
+    '今すぐ退職届を書いてみてください。書くだけなら無料です。',
+    'あなたの魂、時価総額より高いはずです。売り渡さないで。',
+  ],
+];
+
+/* ===========================
+   アプリ状態
+=========================== */
+let currentQ  = 0;
+let answers   = new Array(QUESTIONS.length).fill(null);
+
+/* ===========================
+   ヘルパー
+=========================== */
+const $ = id => document.getElementById(id);
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = $(id);
+  el.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// 点数→パーセント変換（最大50点→100%）
+function toPercent(score) {
+  return Math.round((score / 50) * 100);
+}
+
+// スコア帯でレベル取得
+function getLevel(score) {
+  return LEVELS.find(l => score >= l.min && score <= l.max) || LEVELS[LEVELS.length - 1];
+}
+
+/* ===========================
+   クイズ操作
+=========================== */
+function startQuiz() {
+  currentQ = 0;
+  answers   = new Array(QUESTIONS.length).fill(null);
+  renderQuestion();
+  showScreen('screen-quiz');
+}
+
+function renderQuestion() {
+  const q = QUESTIONS[currentQ];
+  const total = QUESTIONS.length;
+
+  // プログレス
+  const pct = ((currentQ) / total) * 100;
+  $('progress-bar').style.width = pct + '%';
+  $('progress-text').textContent = `${currentQ + 1} / ${total}`;
+
+  // 質問
+  $('q-num').textContent = `QUESTION ${String(currentQ + 1).padStart(2, '0')}`;
+  $('q-text').textContent = q.text;
+
+  // スコアボタン生成
+  const container = $('score-buttons');
+  container.innerHTML = '';
+  for (let i = 0; i <= 5; i++) {
+    const btn = document.createElement('button');
+    btn.className  = 'score-btn' + (answers[currentQ] === i ? ' selected' : '');
+    btn.textContent = i;
+    btn.dataset.score = i;
+    btn.addEventListener('click', () => selectScore(i));
+    container.appendChild(btn);
+  }
+
+  // 次へボタン制御
+  $('btn-next').disabled = answers[currentQ] === null;
+  // 戻るボタン制御
+  $('btn-prev').style.display = currentQ === 0 ? 'none' : '';
+}
+
+function selectScore(score) {
+  answers[currentQ] = score;
+  // ボタン更新
+  document.querySelectorAll('.score-btn').forEach(btn => {
+    btn.classList.toggle('selected', parseInt(btn.dataset.score) === score);
+  });
+  $('btn-next').disabled = false;
+}
+
+function nextQuestion() {
+  if (answers[currentQ] === null) return;
+  if (currentQ < QUESTIONS.length - 1) {
+    currentQ++;
+    renderQuestion();
+  } else {
+    showResult();
+  }
+}
+
+function prevQuestion() {
+  if (currentQ > 0) {
+    currentQ--;
+    renderQuestion();
+  }
+}
+
+function retryQuiz() {
+  startQuiz();
+}
+
+/* ===========================
+   結果表示
+=========================== */
+function showResult() {
+  const total = answers.reduce((s, v) => s + (v || 0), 0);
+  const pct   = toPercent(total);
+  const level = getLevel(total);
+
+  // ヘッダー
+  $('r-level-name').textContent = level.name;
+  $('r-emoji').textContent      = level.emoji;
+  $('r-title').textContent      = level.label;
+  $('r-comment').textContent    = level.comment;
+
+  // 円形ゲージ
+  const track  = $('gauge-track');
+  const R       = 86;
+  const circum  = 2 * Math.PI * R;
+  track.style.strokeDasharray  = circum;
+  track.style.strokeDashoffset = circum; // まず空
+  track.style.stroke            = level.trackColor;
+  $('gauge-pct-text').textContent = '0';
+  $('gauge-score-label').textContent = `${total} / 50点`;
+
+  // アニメーション
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      track.style.strokeDashoffset = circum - (pct / 100) * circum;
+      // カウントアップ
+      let cur = 0;
+      const step = Math.ceil(pct / 60);
+      const timer = setInterval(() => {
+        cur = Math.min(cur + step, pct);
+        $('gauge-pct-text').textContent = cur;
+        if (cur >= pct) clearInterval(timer);
+      }, 25);
+    }, 100);
+  });
+
+  // AIコメント（スコア帯でランダム選択）
+  const idx      = Math.min(Math.floor(total / 11), AI_COMMENTS.length - 1);
+  const pool     = AI_COMMENTS[idx];
+  const aiMsg    = pool[Math.floor(Math.random() * pool.length)];
+  $('ai-comment').textContent = aiMsg;
+
+  // 内訳バー
+  const bList = $('breakdown-list');
+  bList.innerHTML = '';
+  QUESTIONS.forEach((q, i) => {
+    const val = answers[i] || 0;
+    const pctBar = Math.round((val / 5) * 100);
+    const div = document.createElement('div');
+    div.className = 'breakdown-item';
+    div.innerHTML = `
+      <div class="breakdown-label">
+        <span>Q${i + 1}. ${q.text.slice(0, 16)}…</span>
+        <span style="color:var(--text);font-weight:700;">${val}点</span>
+      </div>
+      <div class="breakdown-bar-wrap">
+        <div class="breakdown-bar-fill" data-w="${pctBar}"></div>
+      </div>`;
+    bList.appendChild(div);
+  });
+
+  // 内訳バーアニメーション
+  setTimeout(() => {
+    document.querySelectorAll('.breakdown-bar-fill').forEach(el => {
+      el.style.width = el.dataset.w + '%';
+    });
+  }, 300);
+
+  showScreen('screen-result');
+}
+
+/* ===========================
+   Xシェア
+=========================== */
+function shareResult() {
+  const total = answers.reduce((s, v) => s + (v || 0), 0);
+  const pct   = toPercent(total);
+  const level = getLevel(total);
+  const text  = `私の社畜レベルは ${pct}％（${level.label}）でした💀\n\nあなたの魂はまだ生きていますか？\n👉 社畜レベル診断`;
+  const url   = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+  window.open(url, '_blank', 'noopener');
+}
+</script>
+</body>
+</html>
